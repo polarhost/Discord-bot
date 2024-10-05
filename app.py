@@ -4,6 +4,8 @@ from gtts import gTTS
 import os
 import asyncio
 import time
+from keep_alive import keep_alive
+keep_alive()
 
 intents = discord.Intents.default()
 intents.messages = True
