@@ -1,6 +1,8 @@
 import nextcord
 from nextcord.ext import commands
 import os
+from keep_alive import keep_alive
+keep_alive()
 
 intents = nextcord.Intents.default()
 intents.message_content = True
