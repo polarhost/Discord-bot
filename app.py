@@ -18,8 +18,17 @@ async def test(interaction: nextcord.Interaction):
     em = nextcord.Embed(
         title="Test Bot",
         description="Testing!",
-        color=nextcord.Color.blue
+        color=nextcord.Color.blue()
     )
+    await interaction.response.send_message(embed=em)
+
+@bot.slash_command(description="Shows commands")
+async def help(interaction: nextcord.Interaction):
+    em = nextcord.Embed(
+        title="Help Command",
+        color=nextcord.Color.green()
+    )
+    em.add_field(name="test", inline=False)
     await interaction.response.send_message(embed=em)
 
 bot.run(os.environ['TOKEN'])
