@@ -107,4 +107,4 @@ async def process_queue(ctx):
         # Remove the audio file after playback
         os.remove("tts.mp3")
 
-bot.run(os.getenv.TOKEN)
+bot.run(os.environ[TOKEN])
