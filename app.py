@@ -9,6 +9,7 @@ keep_alive()
 
 intents = discord.Intents.default()
 intents.messages = True
+intents.message_content = True
 intents.guilds = True
 intents.voice_states = True
 
@@ -107,4 +108,4 @@ async def process_queue(ctx):
         # Remove the audio file after playback
         os.remove("tts.mp3")
 
-bot.run(os.environ[TOKEN])
+bot.run(os.environ['TOKEN'])
