@@ -28,7 +28,7 @@ async def help(interaction: nextcord.Interaction):
         title="Help Command",
         color=nextcord.Color.green()
     )
-    em.add_field(name="test", inline=False)
+    em.add_field(name="test", value="Just a test cmd", inline=False)
     await interaction.response.send_message(embed=em)
 
 bot.run(os.environ['TOKEN'])
