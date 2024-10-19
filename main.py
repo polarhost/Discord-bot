@@ -6,7 +6,7 @@ app = Flask(__name__)
 # Discord OAuth2 credentials
 client_id = 'CID'  # Your client ID
 client_secret = 'CS'  # Your client secret
-redirect_url = 'https://polarhost.uk.to/callback'  # Your callback URL
+redirect_uri = 'https://polarhost.uk.to/callback'  # Your callback URL
 scope = 'identify email guilds.join'
 
 # Bot token (for adding users to your server)
@@ -16,7 +16,7 @@ guild_id = 'GID'  # The server (guild) ID to invite users to
 # Main route with login button
 @app.route('/')
 def home():
-    discord_login_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_url={redirect_url}&response_type=code&scope={scope}"
+    discord_login_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}"
     return f'<h1>Login with Discord</h1><a href="{discord_login_url}">Login with Discord</a>'
 
 # Callback route
@@ -32,7 +32,7 @@ def callback():
         'client_secret': client_secret,
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_url': redirect_url
+        'redirect_uri': redirect_uri
     }
 
     headers = {
