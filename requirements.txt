@@ -1,2 +1,2 @@
-nextcord
+express node-fetch querystring
 flask
