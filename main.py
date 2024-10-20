@@ -1,27 +1,35 @@
+import os
 from flask import Flask, redirect, request, jsonify
 import requests
-import os
 import discord
 from discord.ext import tasks
 
 app = Flask(__name__)
 
 # Discord OAuth2 credentials from environment variables
-client_id = os.getenv('CID')  # Discord client ID
-client_secret = os.getenv('CS')  # Discord client secret
-redirect_uri = 'https://polarbackendx.onrender.com/callback'  # Your specified redirect URI
-scope = 'identify email guilds.join'  # Scopes for user information and guild joining
+client_id = os.getenv('CID')
+client_secret = os.getenv('CS')
+redirect_uri = 'https://polarbackendx.onrender.com/callback'  # Update as needed
+scope = 'identify email guilds.join'
 
-# Bot token (for adding users to your server)
-bot_token = os.getenv('TOKEN')  # Bot token from environment variables
-guild_id = os.getenv('GID')  # Guild ID from environment variables
-role_id = os.getenv('ROLE_ID')  # Role ID to assign when users join
+# Bot token and Guild ID (for adding users to your server)
+bot_token = os.getenv('TOKEN')
+guild_id = os.getenv('GID')
 
-# Discord bot client
+# Discord Bot client setup
 intents = discord.Intents.default()
-intents.members = True  # Enable member intent
+intents.members = True
 bot = discord.Client(intents=intents)
 
+# Activity Status
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}')
+    # Set activity status
+    activity = discord.Game(name="https://polarhost.uk.to")
+    await bot.change_presence(activity=activity)
+
+# Web Service (Flask)
 @app.route('/')
 def home():
     discord_login_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}"
@@ -58,6 +66,11 @@ def callback():
         # Optionally fetch email if the scope is granted
         email = user_json.get('email')
 
+        # Get user's avatar and fallback to a custom default if none
+        user_id = user_json['id']
+        avatar_hash = user_json['avatar']
+        avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png" if avatar_hash else "https://cdn.discordapp.com/attachments/1297308582282526762/1297322065342496838/pfp_round.png"
+
         # Add user to the server using the guilds.join scope
         invite_headers = {
             'Authorization': f'Bot {bot_token}',
@@ -65,16 +78,15 @@ def callback():
         }
         invite_data = {'access_token': access_token}
 
-        guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/@me', headers=invite_headers, json=invite_data)
+        guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/{user_id}', headers=invite_headers, json=invite_data)
 
-        if guild_response.status_code == 201:
+        if guild_response.status_code == 201 or guild_response.status_code == 200:
             return f"""
                 <h1>Welcome, {user_json['username']}!</h1>
+                <img src="{avatar_url}" alt="User Avatar" width="150" height="150">
                 <p>Email: {email if email else 'No email provided'}</p>
                 <p>You have been successfully added to the server.</p>
-                <script>
-                    window.location.href = "https://dash.polarhost.uk.to";  // Redirect after login
-                </script>
+                <script>setTimeout(function(){{window.location.href = 'https://dash.polarhost.uk.to';}}, 3000);</script>
             """
         else:
             return f"Error adding user to the server: {guild_response.json()}"
@@ -82,24 +94,16 @@ def callback():
     else:
         return 'Error: Unable to get access token'
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name} (ID: {bot.user.id})')
-    print('Bot is online!')
-    
-    # Set the activity status
-    activity = discord.Game("https://polarhost.uk.to")
-    await bot.change_presence(activity=activity)
-
-@bot.event
-async def on_member_join(member):
-    # Assign the specified role to the member when they join
-    role = discord.utils.get(member.guild.roles, id=int(role_id))
-    if role:
-        await member.add_roles(role)
-        print(f'Assigned {role.name} to {member.name}')
-
-# Run the bot
-if __name__ == '__main__':
-    bot.run(bot_token)
+# Start Flask in background
+def run_flask():
     app.run(host='0.0.0.0', port=5000)
+
+# Start both Flask and Discord bot
+if __name__ == '__main__':
+    # Run Flask on one thread
+    from threading import Thread
+    flask_thread = Thread(target=run_flask)
+    flask_thread.start()
+
+    # Run Discord bot on main thread
+    bot.run(bot_token)
