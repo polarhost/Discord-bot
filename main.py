@@ -12,7 +12,7 @@ scope = 'identify email guilds.join'
 
 # Bot token (for creating invites)
 bot_token = os.getenv('TOKEN')
-guild_id = os.getenv('GID')
+guild_id = "1297157601468874803"
 
 # Default profile picture URL
 default_avatar_url = "https://cdn.discordapp.com/attachments/1297308582282526762/1297322065342496838/pfp_round.png?ex=671580d3&is=67142f53&hm=f4240f0b2c885c68324f0bc9763db8af1683213299b25d85ce6c83db3ae9fe06"
