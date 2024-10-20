@@ -7,7 +7,7 @@ app = Flask(__name__)
 # Discord OAuth2 credentials from environment variables
 client_id = os.getenv('CID')
 client_secret = os.getenv('CS')
-redirect_uri = 'https://polarhost.uk.to/callback'  # Your specified redirect URI
+redirect_uri = 'https://polarbackendx.onrender.com'  # Your specified redirect URI
 scope = 'identify email guilds.join'
 
 # Bot token (for adding users to your server)
