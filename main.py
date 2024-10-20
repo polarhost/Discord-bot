@@ -1,94 +1,101 @@
-from flask import Flask, redirect, request
+from flask import Flask, redirect, request, jsonify
 import requests
 import os
-import logging
+import discord
+from discord.ext import tasks
 
-# Initialize Flask application
 app = Flask(__name__)
 
-# Set up basic logging
-logging.basicConfig(level=logging.DEBUG)
-
 # Discord OAuth2 credentials from environment variables
-client_id = os.getenv('CID')
-client_secret = os.getenv('CS')
+client_id = os.getenv('CID')  # Discord client ID
+client_secret = os.getenv('CS')  # Discord client secret
 redirect_uri = 'https://polarbackendx.onrender.com/callback'  # Your specified redirect URI
-scope = 'identify email guilds.join'
+scope = 'identify email guilds.join'  # Scopes for user information and guild joining
 
 # Bot token (for adding users to your server)
-bot_token = os.getenv('TOKEN')
-guild_id = os.getenv('GID')
+bot_token = os.getenv('TOKEN')  # Bot token from environment variables
+guild_id = os.getenv('GID')  # Guild ID from environment variables
+role_id = os.getenv('ROLE_ID')  # Role ID to assign when users join
+
+# Discord bot client
+intents = discord.Intents.default()
+intents.members = True  # Enable member intent
+bot = discord.Client(intents=intents)
 
 @app.route('/')
 def home():
-    # Generate Discord login URL
     discord_login_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}"
     return f'<h1>Login with Discord</h1><a href="{discord_login_url}">Login with Discord</a>'
 
 @app.route('/callback')
 def callback():
-    try:
-        code = request.args.get('code')
-        if not code:
-            return 'Error: No code provided', 400
+    code = request.args.get('code')
+    if not code:
+        return 'Error: No code provided'
 
-        # Prepare data for token request
-        data = {
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'grant_type': 'authorization_code',
-            'code': code,
-            'redirect_uri': redirect_uri
+    data = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': 'authorization_code',
+        'code': code,
+        'redirect_uri': redirect_uri
+    }
+
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+    # Get access token
+    token_response = requests.post('https://discord.com/api/oauth2/token', data=data, headers=headers)
+    token_json = token_response.json()
+
+    if 'access_token' in token_json:
+        access_token = token_json['access_token']
+
+        # Fetch user info with the access token
+        headers = {'Authorization': f'Bearer {access_token}'}
+        user_response = requests.get('https://discord.com/api/users/@me', headers=headers)
+        user_json = user_response.json()
+
+        # Optionally fetch email if the scope is granted
+        email = user_json.get('email')
+
+        # Add user to the server using the guilds.join scope
+        invite_headers = {
+            'Authorization': f'Bot {bot_token}',
+            'Content-Type': 'application/json'
         }
+        invite_data = {'access_token': access_token}
 
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/@me', headers=invite_headers, json=invite_data)
 
-        # Get access token
-        token_response = requests.post('https://discord.com/api/oauth2/token', data=data, headers=headers)
-        token_response.raise_for_status()  # Raise an error for bad responses
-        token_json = token_response.json()
-
-        if 'access_token' in token_json:
-            access_token = token_json['access_token']
-
-            # Fetch user info with the access token
-            headers = {'Authorization': f'Bearer {access_token}'}
-            user_response = requests.get('https://discord.com/api/users/@me', headers=headers)
-            user_response.raise_for_status()  # Raise an error for bad responses
-            user_json = user_response.json()
-
-            user_id = user_json['id']
-            email = user_json.get('email')
-            avatar_hash = user_json['avatar']
-            avatar_url = (
-                f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png"
-                if avatar_hash
-                else "https://cdn.discordapp.com/attachments/1297308582282526762/1297322065342496838/pfp_round.png?ex=671580d3&is=67142f53&hm=f4240f0b2c885c68324f0bc9763db8af1683213299b25d85ce6c83db3ae9fe06&"
-            )
-
-            # Add user to the server using the guilds.join scope
-            invite_headers = {
-                'Authorization': f'Bot {bot_token}',
-                'Content-Type': 'application/json'
-            }
-            invite_data = {'access_token': access_token}
-
-            # Use the correct endpoint with user_id
-            guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/{user_id}', headers=invite_headers, json=invite_data)
-
-            if guild_response.status_code == 204:  # Status code for No Content
-                return redirect("https://dash.polarhost.uk.to")  # Redirect to the dashboard
-            else:
-                logging.error(f"Error adding user to the server: {guild_response.json()}")
-                return f"Error adding user to the server: {guild_response.json()}", guild_response.status_code
-
+        if guild_response.status_code == 201:
+            return f"""
+                <h1>Welcome, {user_json['username']}!</h1>
+                <p>Email: {email if email else 'No email provided'}</p>
+                <p>You have been successfully added to the server.</p>
+                <script>
+                    window.location.href = "https://dash.polarhost.uk.to";  // Redirect after login
+                </script>
+            """
         else:
-            logging.error("Unable to get access token")
-            return 'Error: Unable to get access token', 500
+            return f"Error adding user to the server: {guild_response.json()}"
 
-    except Exception as e:
-        logging.exception("An error occurred during the callback process.")
-        return f'Error: {str(e)}', 500  # Return the error message
+    else:
+        return 'Error: Unable to get access token'
 
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name} (ID: {bot.user.id})')
+    print('Bot is online!')
+
+@bot.event
+async def on_member_join(member):
+    # Assign the specified role to the member when they join
+    role = discord.utils.get(member.guild.roles, id=int(role_id))
+    if role:
+        await member.add_roles(role)
+        print(f'Assigned {role.name} to {member.name}')
+
+# Run the bot
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)  # Run the application
+    bot.run(bot_token)
+    app.run(host='0.0.0.0', port=5000)
