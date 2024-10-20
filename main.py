@@ -86,6 +86,10 @@ def callback():
 async def on_ready():
     print(f'Logged in as {bot.user.name} (ID: {bot.user.id})')
     print('Bot is online!')
+    
+    # Set the activity status
+    activity = discord.Game("https://polarhost.uk.to")
+    await bot.change_presence(activity=activity)
 
 @bot.event
 async def on_member_join(member):
