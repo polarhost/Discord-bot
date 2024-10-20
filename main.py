@@ -10,9 +10,12 @@ client_secret = os.getenv('CS')
 redirect_uri = 'https://polarbackendx.onrender.com/callback'  # Your specified redirect URI
 scope = 'identify email guilds.join'
 
-# Bot token (for adding users to your server)
+# Bot token (for creating invites)
 bot_token = os.getenv('TOKEN')
 guild_id = os.getenv('GID')
+
+# Default profile picture URL
+default_avatar_url = "https://cdn.discordapp.com/attachments/1297308582282526762/1297322065342496838/pfp_round.png?ex=671580d3&is=67142f53&hm=f4240f0b2c885c68324f0bc9763db8af1683213299b25d85ce6c83db3ae9fe06"
 
 @app.route('/')
 def home():
@@ -50,27 +53,25 @@ def callback():
         # Optionally fetch email if the scope is granted
         email = user_json.get('email')
 
-        # Get user's avatar and fallback to a custom default if none
+        # Get user's avatar and fallback to the provided default if none
         user_id = user_json['id']
         avatar_hash = user_json['avatar']
-        avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png" if avatar_hash else "https://yourdomain.com/path/to/your/default-avatar.png"
+        avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png" if avatar_hash else default_avatar_url
 
-        # Add user to the server using the guilds.join scope
+        # Invite the user to the server using the guilds.join scope
         invite_headers = {
             'Authorization': f'Bot {bot_token}',
             'Content-Type': 'application/json'
         }
-        invite_data = {'access_token': access_token}
+        invite_data = {
+            'access_token': access_token
+        }
 
-        guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/@me', headers=invite_headers, json=invite_data)
+        guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/{user_id}', headers=invite_headers, json=invite_data)
 
         if guild_response.status_code == 201:
-            return f"""
-                <h1>Welcome, {user_json['username']}!</h1>
-                <img src="{avatar_url}" alt="User Avatar" width="150" height="150">
-                <p>Email: {email if email else 'No email provided'}</p>
-                <p>You have been successfully added to the server.</p>
-            """
+            # Successful invitation
+            return redirect("https://dash.polarhost.uk.to")  # Redirect to the dashboard
         else:
             return f"Error adding user to the server: {guild_response.json()}"
 
