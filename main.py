@@ -1,32 +1,31 @@
 from flask import Flask, redirect, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
 # Discord OAuth2 credentials
-client_id = 'CID'  # Your client ID
-client_secret = 'CS'  # Your client secret
-redirect_uri = 'https://polarhost.uk.to/callback'  # Your callback URL
+client_id = 'CID'  # Replace with your actual client ID
+client_secret = 'CS'  # Replace with your actual client secret
+redirect_uri = 'https://polarhost.uk.to/callback'  # Replace with your actual redirect URI
 scope = 'identify email guilds.join'
 
-# Bot token (for adding users to your server)
-bot_token = 'TOKEN'  # Your bot token to invite users to the server
-guild_id = 'GID'  # The server (guild) ID to invite users to
+# Bot token for adding users to a server
+bot_token = 'TOKEN'  # Replace with your bot token
+guild_id = 'GID'  # Replace with your server ID
 
-# Main route with login button
 @app.route('/')
 def home():
-    discord_login_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}"
-    return f'<h1>Login with Discord</h1><a href="{discord_login_url}">Login with Discord</a>'
+    return 'Welcome to PolarHost'
 
-# Callback route
+# The callback route where users are redirected after logging in
 @app.route('/callback')
 def callback():
     code = request.args.get('code')
     if not code:
         return 'Error: No code provided'
 
-    # Exchange the authorization code for an access token
+    # Exchange authorization code for access token
     data = {
         'client_id': client_id,
         'client_secret': client_secret,
@@ -34,51 +33,45 @@ def callback():
         'code': code,
         'redirect_uri': redirect_uri
     }
-
+    
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-
-    # Get access token
+    
     token_response = requests.post('https://discord.com/api/oauth2/token', data=data, headers=headers)
     token_json = token_response.json()
-
+    
     if 'access_token' in token_json:
         access_token = token_json['access_token']
-
-        # Fetch user info with the access token
+        
+        # Fetch user info from Discord
         headers = {
             'Authorization': f'Bearer {access_token}'
         }
         user_response = requests.get('https://discord.com/api/users/@me', headers=headers)
         user_json = user_response.json()
 
-        # Optionally fetch email if the scope is granted
-        email = user_json.get('email')
-
-        # Get user's avatar and fallback to a custom default if none
+        # Get user's email and avatar info
+        email = user_json.get('email', 'No email provided')
         user_id = user_json['id']
-        avatar_hash = user_json['avatar']
-        avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png" if avatar_hash else "https://cdn.discordapp.com/attachments/1297308582282526762/1297322065342496838/pfp_round.png?ex=671580d3&is=67142f53&hm=f4240f0b2c885c68324f0bc9763db8af1683213299b25d85ce6c83db3ae9fe06&"  # Your custom default avatar URL
-
-        # Add user to the server using the guilds.join scope
+        avatar_hash = user_json.get('avatar')
+        avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.png" if avatar_hash else "https://cdn.discordapp.com/attachments/1297308582282526762/1297322065342496838/pfp_round.png?ex=671580d3&is=67142f53&hm=f4240f0b2c885c68324f0bc9763db8af1683213299b25d85ce6c83db3ae9fe06&"
+        
+        # Invite user to server
         invite_headers = {
-            'Authorization': f'Bot {bot_token}',  # Bot token needed to invite user
+            'Authorization': f'Bot {bot_token}',
             'Content-Type': 'application/json'
         }
         invite_data = {
             'access_token': access_token
         }
-
-        # Add the user to the server (guild)
         guild_response = requests.put(f'https://discord.com/api/guilds/{guild_id}/members/@me', headers=invite_headers, json=invite_data)
 
         if guild_response.status_code == 201:
-            # Redirect to your dashboard URL after successful addition to the server
-            return redirect("https://dash.polarhost.uk.to")
+            # After successful login and guild join, redirect user to the dashboard
+            return redirect(f"https://polarhost.uk.to/dashboard?username={user_json['username']}&email={email}")
         else:
             return f"Error adding user to the server: {guild_response.json()}"
-
     else:
         return 'Error: Unable to get access token'
 
